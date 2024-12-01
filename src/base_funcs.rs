@@ -26,7 +26,7 @@ impl Point{
     //G1 evaluates the requrement for the side area sum to be equal to 1
     fn G1(&self) -> f64{
         let out = (self.x * self.y + self.x * self.z + self.z * self.y)*2.0 - 1.0;
-        if out.is_infinite(){panic!("g1 panicked");};
+        if out.is_infinite(){panic!("g1 got out of bounds");};
 
         out
     }
@@ -48,9 +48,9 @@ impl Point{
 
     pub fn B(&self) -> f64{
         let sum_G_squared = Self::G1(self).powi(2);    
-        let max_H_squared = f64::max(Self::H1(self), f64::max(Self::H2(self), Self::H3(self))).powi(2);
+        let sum_H_squared = Self::H1(self).powi(2) + Self::H2(self).powi(2) + Self::H3(self).powi(2);
 
-        sum_G_squared+max_H_squared
+        sum_G_squared+sum_H_squared
     }
 
     pub fn gradient_B(&self, r: f64) -> Point {
@@ -66,6 +66,7 @@ impl Point{
         }
 
         // Partial derivatives of H1, H2, H3
+        //If Hi < 0 -> H' = (-x)' = -1 else Hi = 0 -> (0)' = 0 
         fn partial_H1(x: f64) -> f64 {
             if x < 0.0 { -1.0 } else { 0.0 }
         }
@@ -77,28 +78,14 @@ impl Point{
         }
 
         // Gradients of G1^2
-        let grad_G1_x = (2.0 / r) * self.G1() * partial_G1_x(self.x, self.y, self.z);
+        let grad_G1_x = (2.0 / r) * self.G1() * partial_G1_x(self.x, self.y, self.z); //G1^2'=2*G1*G1'
         let grad_G1_y = (2.0 / r) * self.G1() * partial_G1_y(self.x, self.y, self.z);
         let grad_G1_z = (2.0 / r) * self.G1() * partial_G1_z(self.x, self.y, self.z);
 
-        // Gradients of H^2 (use the maximum constraint, as B includes only the max H term)
-        let max_H = f64::max(self.H1(), f64::max(self.H2(), self.H3()));
-        let grad_H_x = if max_H == self.H1() {
-            (2.0 / r) * max_H * partial_H1(self.x)
-        } else {
-            0.0
-        };
-        let grad_H_y = if max_H == self.H2() {
-            (2.0 / r) * max_H * partial_H2(self.y)
-        } else {
-            0.0
-        };
-        let grad_H_z = if max_H == self.H3() {
-            (2.0 / r) * max_H * partial_H3(self.z)
-        } else {
-            0.0
-        };
-
+        let grad_H_x = (2.0 / r) * self.H1() * partial_H1(self.x); 
+        let grad_H_y = (2.0 / r) * self.H2() * partial_H2(self.y); 
+        let grad_H_z = (2.0 / r) * self.H3() * partial_H3(self.z); 
+    
         // Combine gradients
         let grad_x = grad_G1_x + grad_H_x;
         let grad_y = grad_G1_y + grad_H_y;
@@ -110,14 +97,31 @@ impl Point{
 
     pub fn move_towards_gradient(&self, gradient: Self, gama: f64) -> Self{
         Self {
-            x: self.x + gradient.x * gama,
-            y: self.y + gradient.y * gama,
-            z: self.z + gradient.z * gama
+            x: self.x - gradient.x * gama,
+            y: self.y - gradient.y * gama,
+            z: self.z - gradient.z * gama
         }
     }
+    pub fn gradient_F(&self) -> Point{
+        Point {
+            x: -self.y * self.z,
+            y: -self.x * self.z,
+            z: -self.x * self.y,
+        }
+    }
+
+    pub fn gradient_full(&self, r: f64) -> Point{
+        let grad_F = self.gradient_F(); // Gradient of the base function
+        let grad_B = self.gradient_B(r); // Gradient of the penalty term
     
+        Point {
+            x: grad_F.x + grad_B.x,
+            y: grad_F.y + grad_B.y,
+            z: grad_F.z + grad_B.z,
+        }
+    }
 }
 
-pub fn calc_gradient_norm(gradient_vec: Point) -> f64{
-    (gradient_vec.x.powf(2.0)+gradient_vec.y.powf(2.0)+gradient_vec.z.powf(2.0)).sqrt()
+pub fn calc_gradient_norm(gradient: Point) -> f64{
+    (gradient.x.powi(2) + gradient.y.powi(2) + gradient.z.powi(2)).sqrt()
 }
