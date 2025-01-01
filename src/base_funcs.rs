@@ -5,6 +5,13 @@ pub struct Point {
     pub z: f64
 }
 
+pub fn check_value(out: f64) -> Result<(), &'static str> {
+    if out.is_infinite() {
+        // eprintln!("g1 got out of bounds");
+        return Err("Infinite value detected");
+    }
+    Ok(())
+}
 impl Point{
     pub fn print(&self){
         println!("Point: {}, {}, {}", self.x, self.y, self.z);
@@ -15,6 +22,8 @@ impl Point{
     pub fn print_all(&self){
         self.print();
         self.print_constraints();
+        println!("F: {}", self.F());
+        println!()
     }
 
 
@@ -24,11 +33,8 @@ impl Point{
     }
     
     //G1 evaluates the requrement for the side area sum to be equal to 1
-    fn G1(&self) -> f64{
-        let out = (self.x * self.y + self.x * self.z + self.z * self.y)*2.0 - 1.0;
-        if out.is_infinite(){panic!("g1 got out of bounds");};
-
-        out
+    pub fn G1(&self) -> f64{
+        (self.x * self.y + self.x * self.z + self.z * self.y)*2.0 - 1.0
     }
     
     // x > 0 constraint
